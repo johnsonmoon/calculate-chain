@@ -72,9 +72,6 @@ public class Calculator1 extends AbstractCalculator<Integer> {
 
 import com.github.johnsonmoon.calculate.chain.calculator.AbstractCalculator;
 
-/**
- * Create by xuyh at 2019/9/10 16:09.
- */
 public class Calculator2 extends AbstractCalculator<Integer> {
     @Override
     public Class<Integer> contextType() {
@@ -97,9 +94,6 @@ public class Calculator2 extends AbstractCalculator<Integer> {
 
 import com.github.johnsonmoon.calculate.chain.calculator.AbstractCalculator;
 
-/**
- * Create by xuyh at 2019/9/10 16:09.
- */
 public class Calculator3 extends AbstractCalculator<Integer> {
     @Override
     public Class<Integer> contextType() {
