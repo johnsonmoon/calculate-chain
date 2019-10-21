@@ -17,6 +17,65 @@ import java.util.stream.Collectors;
 public class ClassUtils {
     private static Logger logger = LoggerFactory.getLogger(ClassUtils.class);
 
+    private static List<ClassNameHandler> classNameHandlers = new ArrayList<>();
+    private static List<PackagePathHandler> packagePathHandlers = new ArrayList<>();
+
+    static {
+        classNameHandlers.add(new SpringBootFatJarClassNameHandler());
+        packagePathHandlers.add(new SpringBootFatJarPackagePathHandler());
+    }
+
+    public static void addClassNameHandler(ClassNameHandler handler) {
+        if (classNameHandlers == null) {
+            classNameHandlers = new ArrayList<>();
+        }
+        classNameHandlers.add(handler);
+    }
+
+    public static void addPackageNameHandler(PackagePathHandler handler) {
+        if (packagePathHandlers == null) {
+            packagePathHandlers = new ArrayList<>();
+        }
+        packagePathHandlers.add(handler);
+    }
+
+    private static String handleClassName(String source) {
+        String result = source;
+        if (classNameHandlers != null) {
+            for (ClassNameHandler handler : classNameHandlers) {
+                try {
+                    result = handler.handle(result);
+                } catch (Exception e) {
+                    logger.warn(e.getMessage(), e);
+                }
+            }
+        }
+        return result;
+    }
+
+    private static URL handlePackagePath(String packagePath) {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        URL url = null;
+        try {
+            url = classLoader.getResource(packagePath);
+        } catch (Exception e) {
+            logger.warn(e.getMessage(), e);
+        }
+        if (url == null && packagePathHandlers != null) {
+            for (PackagePathHandler handler : packagePathHandlers) {
+                try {
+                    url = classLoader.getResource(handler.handle(packagePath));
+                } catch (Exception e) {
+                    logger.warn(e.getMessage(), e);
+                }
+                if (url != null) {
+                    break;
+                }
+            }
+        }
+        return url;
+    }
+
     public static List<String> getAllClassNamesFromClassPath() {
         Collection<URL> urls = new ArrayList<>();
         String javaClassPath = System.getProperty("java.class.path");
@@ -61,7 +120,7 @@ public class ClassUtils {
                             logger.debug(e.getMessage(), e);
                         }
                         if (className != null && !className.contains("$")) {
-                            classNames.add(className.replaceAll("/", "."));
+                            classNames.add(handleClassName(className.replaceAll("/", ".")));
                         }
                     }
                 }
@@ -91,7 +150,7 @@ public class ClassUtils {
                             logger.debug(e.getMessage(), e);
                         }
                         if (className != null && !className.contains("$")) {
-                            classNames.add(className.replaceAll("/", "."));
+                            classNames.add(handleClassName(className.replaceAll("/", ".")));
                         }
                     }
                 }
@@ -102,9 +161,8 @@ public class ClassUtils {
 
     public static List<String> getAllClassNamesFromPackage(String packageName) {
         List<String> classNames = new ArrayList<>();
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        String packagePath = packageName.replace(".", "/");
-        URL packageResourceUrl = classLoader.getResource(packagePath);
+        String packagePath = packageName.replaceAll("\\.", "/");
+        URL packageResourceUrl = handlePackagePath(packagePath);
         if (packageResourceUrl == null) {
             return classNames;
         }
@@ -128,7 +186,7 @@ public class ClassUtils {
                             logger.debug(e.getMessage(), e);
                         }
                         if (className != null && !className.contains("$")) {
-                            classNames.add(className.replaceAll("/", "."));
+                            classNames.add(handleClassName(className.replaceAll("/", ".")));
                         }
                     }
                 }
@@ -156,7 +214,7 @@ public class ClassUtils {
                             logger.debug(e.getMessage(), e);
                         }
                         if (className != null && !className.contains("$")) {
-                            classNames.add(className.replaceAll("/", "."));
+                            classNames.add(handleClassName(className.replaceAll("/", ".")));
                         }
                     }
                 }
@@ -183,7 +241,6 @@ public class ClassUtils {
         return subFiles;
     }
 
-
     public static boolean isImplemented(Class<?> clazz, Class<?> interfaceClazz) {
         List<Class<?>> interfaces = getAllImplementedInterfaces(clazz);
         if (interfaces == null || interfaces.isEmpty()) {
@@ -207,5 +264,35 @@ public class ClassUtils {
         }
         interfaces.addAll(Arrays.asList(clazz.getInterfaces()));
         return interfaces;
+    }
+
+    public interface ClassNameHandler {
+        String handle(String source);
+    }
+
+    private static class SpringBootFatJarClassNameHandler implements ClassNameHandler {
+        private static final String SPRING_BOOT_FAT_JAR_CLASS_NAME_PREFIX = "BOOT-INF.classes.";
+
+        @Override
+        public String handle(String source) {
+            if (source.startsWith(SPRING_BOOT_FAT_JAR_CLASS_NAME_PREFIX)) {
+                return source.substring(SPRING_BOOT_FAT_JAR_CLASS_NAME_PREFIX.length(), source.length());
+            } else {
+                return source;
+            }
+        }
+    }
+
+    public interface PackagePathHandler {
+        String handle(String source);
+    }
+
+    private static class SpringBootFatJarPackagePathHandler implements PackagePathHandler {
+        private static final String SPRING_BOOT_FAT_JAR_PACKAGE_PATH_PREFIX = "BOOT-INF/classes/";
+
+        @Override
+        public String handle(String source) {
+            return SPRING_BOOT_FAT_JAR_PACKAGE_PATH_PREFIX + source;
+        }
     }
 }
