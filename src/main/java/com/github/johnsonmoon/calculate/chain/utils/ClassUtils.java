@@ -32,7 +32,7 @@ public class ClassUtils {
         classNameHandlers.add(handler);
     }
 
-    public static void addPackageNameHandler(PackagePathHandler handler) {
+    public static void addPackagePathHandler(PackagePathHandler handler) {
         if (packagePathHandlers == null) {
             packagePathHandlers = new ArrayList<>();
         }
